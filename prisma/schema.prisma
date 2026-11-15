@@ -1,0 +1,180 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Patient {
+  id             Int             @id @default(autoincrement())
+  fileNumber     String          @unique
+  name           String
+  phone          String          @unique
+  dateOfBirth    DateTime?       @db.Date
+  treatmentPlans TreatmentPlan[]
+  appointments   Appointment[]
+  dentalVisits   DentalVisit[]
+  notes          String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([name])
+}
+
+model Dentist {
+  id           Int                 @id @default(autoincrement())
+  name         String
+  specialty    String?
+  phone        String?             @unique
+  isActive     Boolean             @default(true)
+  services     DentistService[]
+  planItems    TreatmentPlanItem[]
+  appointments Appointment[]
+  dentalVisits DentalVisit[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([name])
+}
+
+model DentalService {
+  id                  Int                  @id @default(autoincrement())
+  name                String               @unique
+  price               Decimal              @db.Decimal(10, 2)
+  durationMin         Int
+  isActive            Boolean              @default(true)
+  dentists            DentistService[]
+  planItems           TreatmentPlanItem[]
+  appointments        Appointment[]
+  performedProcedures PerformedProcedure[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model DentistService {
+  dentistId Int
+  serviceId Int
+  dentist   Dentist       @relation(fields: [dentistId], references: [id])
+  service   DentalService @relation(fields: [serviceId], references: [id])
+
+  @@id([dentistId, serviceId])
+  @@index([serviceId])
+}
+
+enum PlanItemStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model TreatmentPlan {
+  id        Int                 @id @default(autoincrement())
+  patientId Int
+  patient   Patient             @relation(fields: [patientId], references: [id])
+  title     String
+  notes     String?
+  items     TreatmentPlanItem[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([patientId])
+}
+
+model TreatmentPlanItem {
+  id                  Int                  @id @default(autoincrement())
+  planId              Int
+  plan                TreatmentPlan        @relation(fields: [planId], references: [id])
+  serviceId           Int
+  service             DentalService        @relation(fields: [serviceId], references: [id])
+  dentistId           Int
+  dentist             Dentist              @relation(fields: [dentistId], references: [id])
+  price               Decimal              @db.Decimal(10, 2)
+  status              PlanItemStatus       @default(PENDING)
+  notes               String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  performedProcedures PerformedProcedure[]
+
+  @@index([planId])
+  @@index([dentistId])
+  @@index([serviceId])
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model Appointment {
+  id           Int               @id @default(autoincrement())
+  patientId    Int
+  patient      Patient           @relation(fields: [patientId], references: [id])
+  dentistId    Int
+  dentist      Dentist           @relation(fields: [dentistId], references: [id])
+  serviceId    Int
+  service      DentalService     @relation(fields: [serviceId], references: [id])
+  startAt      DateTime
+  endAt        DateTime
+  status       AppointmentStatus @default(SCHEDULED)
+  notes        String?
+  cancelReason String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  dentalVisit  DentalVisit?
+
+  @@index([startAt])
+  @@index([dentistId, startAt])
+  @@index([patientId, startAt])
+}
+
+enum DentalVisitStatus {
+  ACTIVE
+  COMPLETED
+}
+
+model DentalVisit {
+  id            Int                  @id @default(autoincrement())
+  appointmentId Int                  @unique
+  appointment   Appointment          @relation(fields: [appointmentId], references: [id])
+  patientId     Int
+  patient       Patient              @relation(fields: [patientId], references: [id])
+  dentistId     Int
+  dentist       Dentist              @relation(fields: [dentistId], references: [id])
+  status        DentalVisitStatus    @default(ACTIVE)
+  notes         String?
+  startedAt     DateTime             @default(now())
+  completedAt   DateTime?
+  procedures    PerformedProcedure[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([patientId, startedAt])
+  @@index([dentistId, startedAt])
+  @@index([status, startedAt])
+}
+
+model PerformedProcedure {
+  id                  Int                @id @default(autoincrement())
+  visitId             Int
+  visit               DentalVisit        @relation(fields: [visitId], references: [id])
+  serviceId           Int
+  service             DentalService      @relation(fields: [serviceId], references: [id])
+  treatmentPlanItemId Int?
+  treatmentPlanItem   TreatmentPlanItem? @relation(fields: [treatmentPlanItemId], references: [id])
+  notes               String?
+  performedAt         DateTime           @default(now())
+  createdAt           DateTime           @default(now())
+
+  @@unique([visitId, treatmentPlanItemId])
+  @@index([serviceId])
+}
