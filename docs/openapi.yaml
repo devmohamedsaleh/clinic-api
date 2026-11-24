@@ -1,0 +1,1169 @@
+openapi: 3.0.3
+info:
+  title: Dental Care Clinic API
+  version: 1.0.0
+  description: |
+    REST API for a dental clinic management system (patients, dentists, services,
+    treatment plans, appointments, dental visits).
+
+    This specification is hand-written from the routes, Zod validation schemas and
+    service code in this repository. The API does not serve Swagger UI itself and
+    has no authentication or CORS configuration; see the README.
+servers:
+  - url: http://localhost:3000
+    description: Local development (port is fixed in src/index.ts)
+tags:
+  - name: Health
+  - name: Patients
+  - name: Dentists
+  - name: Dental Services
+  - name: Treatment Plans
+  - name: Appointments
+  - name: Dental Visits
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness check
+      responses:
+        '200':
+          description: Server is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+  /health/db:
+    get:
+      tags: [Health]
+      summary: Database connectivity check
+      responses:
+        '200':
+          description: Database reachable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  db: { type: string, example: ok }
+                  version: { type: string, example: PostgreSQL 16.x }
+
+  /patients:
+    post:
+      tags: [Patients]
+      summary: Create a patient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePatient' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Patient' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Patients]
+      summary: List patients (newest first)
+      parameters:
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/IsActive' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Paginated patients (search matches name or phone)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/PageMeta' }
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Patient' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /patients/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Patients]
+      summary: Get a patient
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Patient' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Patients]
+      summary: Update a patient (partial)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePatient' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Patient' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /patients/{id}/deactivate:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [Patients]
+      summary: Deactivate a patient
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Patient' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /dentists:
+    post:
+      tags: [Dentists]
+      summary: Create a dentist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDentist' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dentist' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Dentists]
+      summary: List dentists (newest first)
+      parameters:
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/IsActive' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Paginated dentists (search matches name, specialty or phone)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/PageMeta' }
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Dentist' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /dentists/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Dentists]
+      summary: Get a dentist
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dentist' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Dentists]
+      summary: Update a dentist (partial)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateDentist' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dentist' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /dentists/{id}/status:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [Dentists]
+      summary: Activate or deactivate a dentist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StatusBody' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dentist' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /dentists/{id}/services:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Dentists]
+      summary: List services a dentist offers
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentistServices' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Dentists]
+      summary: Replace the set of services a dentist offers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceIds]
+              properties:
+                serviceIds:
+                  type: array
+                  maxItems: 100
+                  items: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentistServices' }
+        '400':
+          description: Validation failed, or some service IDs do not exist (details.missingServiceIds)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Inactive services cannot be assigned (details.inactiveServiceIds)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /services:
+    post:
+      tags: [Dental Services]
+      summary: Create a dental service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateService' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentalService' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Dental Services]
+      summary: List dental services (sorted by name)
+      parameters:
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/IsActive' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Paginated services (search matches name)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/PageMeta' }
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/DentalService' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /services/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Dental Services]
+      summary: Get a dental service
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentalService' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Dental Services]
+      summary: Update a dental service (partial)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateService' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentalService' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /services/{id}/status:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [Dental Services]
+      summary: Activate or deactivate a service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StatusBody' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentalService' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /services/{id}/dentists:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Dental Services]
+      summary: List dentists who offer a service
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  dentists:
+                    type: array
+                    items: { $ref: '#/components/schemas/Dentist' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /treatment-plans:
+    post:
+      tags: [Treatment Plans]
+      summary: Create a treatment plan (optionally with items)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePlan' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TreatmentPlan' }
+        '400':
+          description: Validation failed, patient does not exist, or a referenced service/dentist does not exist
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: Patient inactive, or an item is invalid (inactive service/dentist, dentist does not provide the service)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    get:
+      tags: [Treatment Plans]
+      summary: List treatment plans (newest first)
+      parameters:
+        - name: patientId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: hasRemaining
+          in: query
+          description: "true = at least one item not completed; false = every item completed (or no items)"
+          schema: { type: boolean }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Paginated plans, each with a summary and no items
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/PageMeta' }
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/TreatmentPlanListItem' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /treatment-plans/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Treatment Plans]
+      summary: Get a plan with its items
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TreatmentPlan' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Treatment Plans]
+      summary: Update plan title and/or notes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                title: { type: string, minLength: 2, maxLength: 150 }
+                notes: { type: string, maxLength: 1000, nullable: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TreatmentPlan' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /treatment-plans/{id}/items:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [Treatment Plans]
+      summary: Add an item to a plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanItemInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item: { $ref: '#/components/schemas/PlanItem' }
+                  summary: { $ref: '#/components/schemas/PlanSummary' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /treatment-plans/{id}/items/{itemId}:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+      - { $ref: '#/components/parameters/ItemId' }
+    patch:
+      tags: [Treatment Plans]
+      summary: Update an item's dentist and/or notes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                dentistId: { type: integer, minimum: 1 }
+                notes: { type: string, maxLength: 500, nullable: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanItem' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Item completed, or dentist inactive / does not provide the service
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Treatment Plans]
+      summary: Delete a PENDING item
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary: { $ref: '#/components/schemas/PlanSummary' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /treatment-plans/{id}/items/{itemId}/status:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+      - { $ref: '#/components/parameters/ItemId' }
+    patch:
+      tags: [Treatment Plans]
+      summary: Change an item's status
+      description: Allowed transitions are PENDING to IN_PROGRESS or COMPLETED, and IN_PROGRESS to COMPLETED.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/PlanItemStatus' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item: { $ref: '#/components/schemas/PlanItem' }
+                  summary: { $ref: '#/components/schemas/PlanSummary' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Invalid transition (details.from, details.to, details.allowed)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /appointments:
+    post:
+      tags: [Appointments]
+      summary: Book an appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAppointment' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '400':
+          description: Validation failed, start time not in the future, or a referenced entity does not exist
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: Inactive entity, dentist does not provide the service, or dentist not available (details.conflictingAppointment)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    get:
+      tags: [Appointments]
+      summary: List appointments (ordered by start time)
+      parameters:
+        - name: date
+          in: query
+          description: Day to list, interpreted in the clinic time zone (CLINIC_TIMEZONE, default Africa/Cairo)
+          schema: { type: string, format: date }
+        - name: dentistId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: patientId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/AppointmentStatus' }
+        - { $ref: '#/components/parameters/Page' }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Paginated appointments. meta.range is present when `date` is used.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Appointment' }
+                  meta:
+                    allOf:
+                      - { $ref: '#/components/schemas/Meta' }
+                      - type: object
+                        properties:
+                          range:
+                            type: object
+                            properties:
+                              from: { type: string, format: date-time }
+                              to: { type: string, format: date-time }
+                              timeZone: { type: string, example: Africa/Cairo }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /appointments/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Appointments]
+      summary: Get an appointment
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Appointments]
+      summary: Reschedule or change dentist, service, notes
+      description: Only SCHEDULED or CONFIRMED appointments can be edited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateAppointment' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /appointments/{id}/status:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [Appointments]
+      summary: Confirm or cancel an appointment
+      description: SCHEDULED to CONFIRMED or CANCELLED; CONFIRMED to CANCELLED. COMPLETED is set only by completing the dental visit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [CONFIRMED, CANCELLED] }
+                cancelReason:
+                  type: string
+                  minLength: 2
+                  maxLength: 300
+                  description: Allowed only when status is CANCELLED
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Appointment' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /dental-visit:
+    post:
+      tags: [Dental Visits]
+      summary: Start a visit from an appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appointmentId]
+              properties:
+                appointmentId: { type: integer, minimum: 1 }
+                notes: { type: string, maxLength: 5000 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentalVisit' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Dental Visits]
+      summary: List visits (newest first)
+      parameters:
+        - name: patientId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: dentistId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/DentalVisitStatus' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Paginated visits
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/PageMeta' }
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/DentalVisit' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /dental-visit/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [Dental Visits]
+      summary: Get a visit with its procedures
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentalVisit' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /dental-visit/{id}/procedures:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [Dental Visits]
+      summary: Record a performed procedure
+      description: |
+        If `treatmentPlanItemId` is provided, the item must belong to the visit's patient,
+        be assigned to the visit's dentist and match `serviceId`; it is marked COMPLETED
+        in the same transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceId]
+              properties:
+                serviceId: { type: integer, minimum: 1 }
+                treatmentPlanItemId: { type: integer, minimum: 1 }
+                notes: { type: string, maxLength: 2000 }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PerformedProcedure' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /dental-visit/{id}/notes:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [Dental Visits]
+      summary: Update visit notes (ACTIVE visits only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notes]
+              properties:
+                notes: { type: string, maxLength: 5000, nullable: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentalVisit' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /dental-visit/{id}/complete:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [Dental Visits]
+      summary: Complete the visit (and its appointment)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DentalVisit' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    Search:
+      name: search
+      in: query
+      schema: { type: string, maxLength: 100 }
+    IsActive:
+      name: isActive
+      in: query
+      schema: { type: boolean }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+
+  responses:
+    ValidationError:
+      description: Validation failed or malformed JSON
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            message: Validation failed
+            details:
+              - { field: phone, message: Phone must be a valid Egyptian mobile number }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { message: Patient not found }
+    Conflict:
+      description: Duplicate value, invalid state transition or business rule violated
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { message: Phone already exists }
+
+  schemas:
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        details: {}
+    Meta:
+      type: object
+      properties:
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+        totalPages: { type: integer }
+    PageMeta:
+      type: object
+      properties:
+        meta: { $ref: '#/components/schemas/Meta' }
+    StatusBody:
+      type: object
+      required: [isActive]
+      properties:
+        isActive: { type: boolean }
+    PlanItemStatus:
+      type: string
+      enum: [PENDING, IN_PROGRESS, COMPLETED]
+    AppointmentStatus:
+      type: string
+      enum: [SCHEDULED, CONFIRMED, CANCELLED, COMPLETED]
+    DentalVisitStatus:
+      type: string
+      enum: [ACTIVE, COMPLETED]
+
+    Patient:
+      type: object
+      properties:
+        id: { type: integer }
+        fileNumber: { type: string }
+        name: { type: string }
+        phone: { type: string }
+        dateOfBirth: { type: string, format: date-time, nullable: true }
+        notes: { type: string, nullable: true }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreatePatient:
+      type: object
+      required: [fileNumber, name, phone]
+      properties:
+        fileNumber: { type: string, minLength: 1, maxLength: 20 }
+        name: { type: string, minLength: 2, maxLength: 100 }
+        phone: { type: string, pattern: '^01[0125]\d{8}$', example: '01012345678' }
+        dateOfBirth: { type: string, format: date, description: Cannot be in the future }
+        notes: { type: string, maxLength: 500 }
+    UpdatePatient:
+      type: object
+      minProperties: 1
+      properties:
+        fileNumber: { type: string, minLength: 1, maxLength: 20 }
+        name: { type: string, minLength: 2, maxLength: 100 }
+        phone: { type: string, pattern: '^01[0125]\d{8}$' }
+        dateOfBirth: { type: string, format: date }
+        notes: { type: string, maxLength: 500 }
+
+    Dentist:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        specialty: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateDentist:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        specialty: { type: string, minLength: 2, maxLength: 100 }
+        phone: { type: string, pattern: '^01[0125]\d{8}$' }
+    UpdateDentist:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        specialty: { type: string, minLength: 2, maxLength: 100 }
+        phone: { type: string, pattern: '^01[0125]\d{8}$' }
+    DentistServices:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        services:
+          type: array
+          items: { $ref: '#/components/schemas/DentalService' }
+
+    DentalService:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        price:
+          type: string
+          description: Decimal(10,2), serialised as a string
+          example: '550'
+        durationMin: { type: integer }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateService:
+      type: object
+      required: [name, price, durationMin]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        price: { type: number, minimum: 0, maximum: 1000000, multipleOf: 0.01 }
+        durationMin: { type: integer, minimum: 5, maximum: 480 }
+    UpdateService:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 100 }
+        price: { type: number, minimum: 0, maximum: 1000000, multipleOf: 0.01 }
+        durationMin: { type: integer, minimum: 5, maximum: 480 }
+
+    PlanItemInput:
+      type: object
+      required: [serviceId, dentistId]
+      properties:
+        serviceId: { type: integer, minimum: 1 }
+        dentistId: { type: integer, minimum: 1 }
+        notes: { type: string, maxLength: 500 }
+    CreatePlan:
+      type: object
+      required: [patientId, title]
+      properties:
+        patientId: { type: integer, minimum: 1 }
+        title: { type: string, minLength: 2, maxLength: 150 }
+        notes: { type: string, maxLength: 1000 }
+        items:
+          type: array
+          maxItems: 50
+          default: []
+          items: { $ref: '#/components/schemas/PlanItemInput' }
+    PlanSummary:
+      type: object
+      properties:
+        totalItems: { type: integer }
+        completedItems: { type: integer }
+        remainingItems: { type: integer }
+    PlanItem:
+      type: object
+      properties:
+        id: { type: integer }
+        planId: { type: integer }
+        serviceId: { type: integer }
+        dentistId: { type: integer }
+        price:
+          type: string
+          description: Snapshot of the service price taken when the item was created
+          example: '550'
+        status: { $ref: '#/components/schemas/PlanItemStatus' }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        service:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        dentist:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+    PatientRef:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        fileNumber: { type: string }
+    TreatmentPlan:
+      type: object
+      properties:
+        id: { type: integer }
+        patientId: { type: integer }
+        title: { type: string }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        patient: { $ref: '#/components/schemas/PatientRef' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PlanItem' }
+        summary: { $ref: '#/components/schemas/PlanSummary' }
+    TreatmentPlanListItem:
+      type: object
+      properties:
+        id: { type: integer }
+        patientId: { type: integer }
+        title: { type: string }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        patient: { $ref: '#/components/schemas/PatientRef' }
+        summary: { $ref: '#/components/schemas/PlanSummary' }
+
+    CreateAppointment:
+      type: object
+      required: [patientId, dentistId, serviceId, startAt]
+      properties:
+        patientId: { type: integer, minimum: 1 }
+        dentistId: { type: integer, minimum: 1 }
+        serviceId: { type: integer, minimum: 1 }
+        startAt:
+          type: string
+          format: date-time
+          description: ISO 8601 with a UTC offset; must be in the future
+          example: '2026-11-25T10:00:00+02:00'
+        durationMin:
+          type: integer
+          minimum: 5
+          maximum: 480
+          description: Defaults to the service's durationMin
+        notes: { type: string, maxLength: 500 }
+    UpdateAppointment:
+      type: object
+      minProperties: 1
+      properties:
+        startAt: { type: string, format: date-time }
+        durationMin: { type: integer, minimum: 5, maximum: 480 }
+        dentistId: { type: integer, minimum: 1 }
+        serviceId: { type: integer, minimum: 1 }
+        notes: { type: string, maxLength: 500, nullable: true }
+    Appointment:
+      type: object
+      properties:
+        id: { type: integer }
+        patientId: { type: integer }
+        dentistId: { type: integer }
+        serviceId: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/AppointmentStatus' }
+        notes: { type: string, nullable: true }
+        cancelReason: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        patient:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            fileNumber: { type: string }
+            phone: { type: string }
+        dentist:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        service:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            durationMin: { type: integer }
+
+    PerformedProcedure:
+      type: object
+      properties:
+        id: { type: integer }
+        visitId: { type: integer }
+        serviceId: { type: integer }
+        treatmentPlanItemId: { type: integer, nullable: true }
+        notes: { type: string, nullable: true }
+        performedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        service: { $ref: '#/components/schemas/DentalService' }
+        treatmentPlanItem:
+          type: object
+          nullable: true
+          description: The plan item row (status is as read before it was marked COMPLETED)
+    DentalVisit:
+      type: object
+      properties:
+        id: { type: integer }
+        appointmentId: { type: integer }
+        patientId: { type: integer }
+        dentistId: { type: integer }
+        status: { $ref: '#/components/schemas/DentalVisitStatus' }
+        notes: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        appointment: { type: object, description: Appointment row including its service }
+        patient: { $ref: '#/components/schemas/Patient' }
+        dentist: { $ref: '#/components/schemas/Dentist' }
+        procedures:
+          type: array
+          items: { $ref: '#/components/schemas/PerformedProcedure' }
