@@ -4,7 +4,7 @@ import { PrismaClient } from '../../generated/prisma/client';
 
 // Prefer the public URL when present: Railway's private network
 // (postgres.railway.internal) is not reachable from this service.
-const connectionString = process.env.DATABASE_PUBLIC_URL ?? process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error('DATABASE_URL (or DATABASE_PUBLIC_URL) is not set');

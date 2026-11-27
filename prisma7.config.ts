@@ -10,6 +10,6 @@ export default defineConfig({
   },
   datasource: {
     // Prefer the public URL when present (see src/lib/prisma.ts).
-    url: process.env["DATABASE_PUBLIC_URL"] ?? process.env["DATABASE_URL"],
+    url: process.env["DATABASE_PUBLIC_URL"] || process.env["DATABASE_URL"],
   },
 });
