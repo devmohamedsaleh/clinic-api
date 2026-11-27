@@ -1,0 +1,10 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "buildCommand": "npx prisma generate"
+  },
+  "deploy": {
+    "preDeployCommand": ["npx prisma migrate deploy"],
+    "startCommand": "npm start"
+  }
+}
