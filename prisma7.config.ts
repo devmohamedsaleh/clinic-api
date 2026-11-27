@@ -3,13 +3,33 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+// Prefer the public URL when present (see src/lib/prisma.ts).
+const source = process.env["DATABASE_PUBLIC_URL"] ? "DATABASE_PUBLIC_URL" : "DATABASE_URL";
+const url = process.env[source];
+
+// Diagnostic: show which variable/host this deploy sees (never the password).
+let host = "(empty)";
+try {
+  if (url) host = new URL(url).host;
+} catch {
+  host = "(unparseable)";
+}
+console.log(
+  `[db-debug] source=${source} host=${host}` +
+    ` commit=${process.env["RAILWAY_GIT_COMMIT_SHA"]?.slice(0, 7) ?? "?"}` +
+    ` service=${process.env["RAILWAY_SERVICE_NAME"] ?? "?"}` +
+    ` env=${process.env["RAILWAY_ENVIRONMENT_NAME"] ?? "?"}` +
+    ` project=${process.env["RAILWAY_PROJECT_NAME"] ?? "?"}` +
+    ` hasPublic=${Boolean(process.env["DATABASE_PUBLIC_URL"])}` +
+    ` hasPrivate=${Boolean(process.env["DATABASE_URL"])}`,
+);
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    // Prefer the public URL when present (see src/lib/prisma.ts).
-    url: process.env["DATABASE_PUBLIC_URL"] || process.env["DATABASE_URL"],
+    url,
   },
 });
